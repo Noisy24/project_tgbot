@@ -4,7 +4,7 @@ def start():
     conn = sqlite3.connect('main.db')
     cur = conn.cursor()
     cur.execute('''CREATE TABLE IF NOT EXISTS products(
-    product_id INTEGET PRIMARY KEY,
+    product_id INTEGER PRIMARY KEY,
     company_name TEXT,
     model_name TEXT,
     price INTEGER);''')
@@ -43,3 +43,6 @@ def create_user(user_id):
         return
     cur.execute(f'''INSERT INTO users(user_id, balance, basket) VALUES ({user_id}, 0, '');''')
     conn.commit()
+
+def get_company_names(company_name):
+    pass
