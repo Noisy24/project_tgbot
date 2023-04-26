@@ -1,13 +1,12 @@
-import datetime
 import sqlalchemy
-from sqlalchemy import orm
-from .db_session import SqlAlchemyBase
+from data.db_session import SqlAlchemyBase
 
 
 class User(SqlAlchemyBase):
     __tablename__ = 'users'
 
-    users_id = sqlalchemy.Column(sqlalchemy.Integer, primary_key=True)
-    company_name = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    model_name = sqlalchemy.Column(sqlalchemy.String, nullable=True)
-    price = sqlalchemy.Column(sqlalchemy.Integer)
+    users_id = sqlalchemy.Column(sqlalchemy.Integer,
+                           primary_key=True, autoincrement=True)
+
+    balance = sqlalchemy.Column(sqlalchemy.Integer)
+    basket = sqlalchemy.Column(sqlalchemy.String)

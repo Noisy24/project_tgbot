@@ -1,21 +1,19 @@
 import logging
 import os
 
-import db
-import dotenv
+from dotenv import load_dotenv
 import config
 
 from aiogram import Bot, Dispatcher, types, executor
 from aiogram.contrib.fsm_storage.memory import MemoryStorage
 from aiogram.dispatcher.filters.state import State, StatesGroup
 
-
 from db_operations import add_product, get_product_by_id, create_user, get_company_names, get_company_products, \
     clean_basket, create_basket_txt, get_user, add_product_to_basket, spend_balance
 from data.users import User
+from data import db_session
 
-
-dotenv.load_dotenv()
+load_dotenv()
 API_TOKEN = os.getenv('BOT_TOKEN')
 
 logging.basicConfig(level=logging.INFO)
@@ -23,20 +21,50 @@ storage = MemoryStorage()
 bot = Bot(token=API_TOKEN)
 dp = Dispatcher(bot, storage=storage)
 
+db_session.global_init("db/datebase.db")
+
 
 class States(StatesGroup):
     get_amount = State()
 
 
 @dp.message_handler(commands=['start'])
-async def main_menu(message: types.Message):
+async def start(message: types.Message):
+    markup = types.InlineKeyboardMarkup()
+    btn1 = types.InlineKeyboardButton(text='Главное меню', callback_data='main_menu')
+    create_user(message.from_user.id)
+    markup.add(btn1)
+    await message.answer('Добро пожаловать в магазин телефонов, нажмите кнопку для перехода в главное меню',
+                         reply_markup=markup)
+
+
+@dp.callback_query_handler(lambda query: query.data == 'main_menu')
+async def main_menu(callback_query: types.CallbackQuery):
     markup = types.InlineKeyboardMarkup()
     btn1 = types.InlineKeyboardButton(text='Товары', callback_data='show_products')
     btn2 = types.InlineKeyboardButton(text='Корзина', callback_data='show_basket')
-    btn3 = types.InlineKeyboardButton(text='Пополнить баланс', callback_data='balance')
+    btn3 = types.InlineKeyboardButton(text='Пополнить баланс', callback_data='add_balance')
     btn4 = types.InlineKeyboardButton(text='Поддержка', url=config.admin_link)
     markup.add(btn1, btn2, btn3, btn4)
-    await message.answer('Главное меню', reply_markup=markup)
+
+    await callback_query.message.answer('Главное меню', reply_markup=markup)
+
+
+@dp.callback_query_handler(lambda query: query.data == 'add_balance')
+async def add_balance(callback_query: types.CallbackQuery):
+    db_sess = db_session.create_session()
+    user = db_sess.query(User).filter(User.users_id == message.chat.id).first()
+    if user:
+        try:
+            balance_to_add = int(message.text.split()[1])
+            user.balance += balance_to_add
+            db_sess.commit()
+            await message.reply(
+                f"Баланс успешно пополнен на {balance_to_add} рублей. Текущий баланс: {user.balance} рублей.")
+        except (IndexError, ValueError):
+            await message.reply("Введите сумму для пополнения баланса.")
+    else:
+        await message.reply("Произошла ошибка. Попробуйте позже.")
 
 
 @dp.callback_query_handler(lambda query: query.data == 'show_products')
@@ -56,7 +84,7 @@ async def show_company_products(callback_query: types.CallbackQuery):
     print(get_company_products(company))
     for product in products:
         markup.add(types.InlineKeyboardButton(text=product[2], callback_data=f'show_id_{product[0]}'))
-    markup.add(types.InlineKeyboardButton(text='Назад', callback_data='show_products'))
+    markup.add(types.InlineKeyboardButton(text='Назад', callback_data='show_product'))
     await callback_query.message.edit_text(text='Выберите товар', reply_markup=markup)
 
 
@@ -81,21 +109,22 @@ async def add_basket(callback_query: types.CallbackQuery):
     await callback_query.message.edit_text(text='Продукт успешно добавлен в корзину', reply_markup=None)
 
 
-@dp.callback_query_handler(lambda query: query.data == 'show_product')
+@dp.callback_query_handler(lambda query: query.data == 'show_basket')
 async def show_basket(callback_query: types.CallbackQuery):
     markup = types.InlineKeyboardMarkup()
     markup.add(types.InlineKeyboardButton(text='Оплатить корзину', callback_data='buy_basket'))
     markup.add(types.InlineKeyboardButton(text='Очистить корзину', callback_data='clear_basket'))
     markup.add(types.InlineKeyboardButton(text='Назад', callback_data='main_menu'))
-    basket_txt = create_basket_txt(callback_query.message.chat.id)
     user = get_user(callback_query.message.chat.id)
+    print(user)
     balance = user[1]
     basket = user[2]
     cost = 0
-    for product_id in basket.split():
-        prodct = get_product_by_id(int(product_id))
-        price = prodct[3]
-        cost += price
+    if basket:
+        for product_id in basket.split('-'):
+            prodct = get_product_by_id(int(product_id))
+            price = prodct[3]
+            cost += price
     text = f'''Ваш баланс: {balance}
 Стоимость корзины: {cost}
 Ваша корзина:

@@ -14,14 +14,15 @@ def add_product(company_name, model_name, price):
 def get_product_by_id(product_id):
     db_sess = db_session.create_session()
     product = db_sess.query(Product).filter(Product.product_id == product_id).first()
-    return product
+    return [product.product_id, product.company_name, product.model_name, product.price]
 
 
-def create_user(user_id):
+
+def create_user(users_id):
     db_sess = db_session.create_session()
-    user = db_sess.query(User).filter(User.user_id == user_id).first()
+    user = db_sess.query(User).filter(User.users_id == users_id).first()
     if user is None:
-        new_user = User(user_id=user_id, balance=0, basket='')
+        new_user = User(users_id=users_id, balance=0, basket='')
         db_sess.add(new_user)
         db_sess.commit()
 
@@ -36,47 +37,51 @@ def get_company_names():
 def get_company_products(company_name):
     db_sess = db_session.create_session()
     products = db_sess.query(Product).filter(Product.company_name == company_name).all()
-    return products
+    result = [[product.product_id, product.company_name, product.model_name, product.price] for product in products]
+    print(result)
+    return result
 
 
-def clean_basket(user_id):
+def clean_basket(users_id):
     db_sess = db_session.create_session()
-    user = db_sess.query(User).filter(User.user_id == user_id).first()
+    user = db_sess.query(User).filter(User.users_id == users_id).first()
     user.basket = ''
     db_sess.commit()
 
 
-def create_basket_txt(user_id):
+def create_basket_txt(users_id):
     db_sess = db_session.create_session()
-    user = db_sess.query(User).filter(User.user_id == user_id).first()
-    basket = user.basket
-    with open(f"{user_id}_basket.txt", "w") as f:
+    user = db_sess.query(User).filter(User.users_id == users_id).first()
+    basket = str(user.basket)
+    with open(f"{users_id}_basket.txt", "w") as f:
         f.write(basket)
+    return basket
 
 
-def get_user(user_id):
+def get_user(users_id):
     db_sess = db_session.create_session()
-    user = db_sess.query(User).filter(User.user_id == user_id).first()
-    return user
+    user = db_sess.query(User).filter(User.users_id == users_id).first()
+    if user:
+        return [user.users_id, user.balance, user.basket]
+    return []
 
 
-def add_product_to_basket(user_id, product_id):
+def add_product_to_basket(product_id, users_id):
     db_sess = db_session.create_session()
-    user = db_sess.query(User).filter(User.user_id == user_id).first()
+    user = db_sess.query(User).filter(User.users_id == users_id).first()
     product = get_product_by_id(product_id)
     if product:
-        if user.basket:
-            user.basket += f",{product_id}"
-        else:
-            user.basket = str(product_id)
+        basket = user.basket.split(';')
+        basket.append(str(product_id))
+        user.basket = ';'.join(basket)
         db_sess.commit()
         return True
     return False
 
 
-def spend_balance(user_id, cost):
+def spend_balance(users_id, cost):
     db_sess = db_session.create_session()
-    user = db_sess.query(User).filter(User.user_id == user_id).first()
+    user = db_sess.query(User).filter(User.users_id == users_id).first()
     if user.balance >= cost:
         user.balance -= cost
         db_sess.commit()
