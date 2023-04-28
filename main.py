@@ -53,6 +53,7 @@ async def main_menu(callback_query: types.CallbackQuery):
 @dp.callback_query_handler(lambda query: query.data == 'add_balance')
 async def add_balance(callback_query: types.CallbackQuery):
     db_sess = db_session.create_session()
+    message = callback_query.message
     user = db_sess.query(User).filter(User.users_id == message.chat.id).first()
     if user:
         try:
